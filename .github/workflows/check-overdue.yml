@@ -1,0 +1,21 @@
+name: Daily overdue book check
+
+on:
+  schedule:
+    # 07:00 UTC daily. Adjust to suit your timezone.
+    - cron: '0 7 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call check-overdue edge function
+        run: |
+          curl --fail --silent --show-error \
+            -X POST "${SUPABASE_URL}/functions/v1/check-overdue" \
+            -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
+            -H "Content-Type: application/json"
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
