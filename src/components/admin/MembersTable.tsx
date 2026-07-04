@@ -9,6 +9,7 @@ export default function MembersTable() {
   const { navigate } = useRouter()
   const [members, setMembers] = useState<Member[] | null>(null)
   const [activeCountByMember, setActiveCountByMember] = useState<Record<string, number>>({})
+  const [totalCountByMember, setTotalCountByMember] = useState<Record<string, number>>({})
   const [search, setSearch] = useState('')
 
   useEffect(() => {
@@ -19,16 +20,18 @@ export default function MembersTable() {
     const { data: memberRows } = await supabase.from('members').select('*').order('created_at', { ascending: false })
     setMembers((memberRows as Member[]) ?? [])
 
-    const { data: activeBorrows } = await supabase
-      .from('borrow_records')
-      .select('member_id')
-      .is('returned_at', null)
+    const { data: allBorrows } = await supabase.from('borrow_records').select('member_id, returned_at')
 
-    const counts: Record<string, number> = {}
-    for (const row of (activeBorrows as { member_id: string }[]) ?? []) {
-      counts[row.member_id] = (counts[row.member_id] ?? 0) + 1
+    const activeCounts: Record<string, number> = {}
+    const totalCounts: Record<string, number> = {}
+    for (const row of (allBorrows as { member_id: string; returned_at: string | null }[]) ?? []) {
+      totalCounts[row.member_id] = (totalCounts[row.member_id] ?? 0) + 1
+      if (!row.returned_at) {
+        activeCounts[row.member_id] = (activeCounts[row.member_id] ?? 0) + 1
+      }
     }
-    setActiveCountByMember(counts)
+    setActiveCountByMember(activeCounts)
+    setTotalCountByMember(totalCounts)
   }
 
   const filtered = useMemo(() => {
@@ -67,6 +70,7 @@ export default function MembersTable() {
                 <th className="px-4 py-3">Age</th>
                 <th className="px-4 py-3">School</th>
                 <th className="px-4 py-3">Trusted adult</th>
+                <th className="px-4 py-3">Total borrowed</th>
                 <th className="px-4 py-3">Borrowed now</th>
               </tr>
             </thead>
@@ -85,12 +89,13 @@ export default function MembersTable() {
                     {member.trusted_adult_name}
                     <div className="text-xs text-ink/50">{member.trusted_adult_email}</div>
                   </td>
+                  <td className="px-4 py-3">{totalCountByMember[member.id] ?? 0}</td>
                   <td className="px-4 py-3">{activeCountByMember[member.id] ?? 0}</td>
                 </tr>
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-6 text-center text-ink/50">
+                  <td colSpan={7} className="px-4 py-6 text-center text-ink/50">
                     No members match your search.
                   </td>
                 </tr>
