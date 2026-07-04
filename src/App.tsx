@@ -46,7 +46,7 @@ export default function App() {
   return (
     <AuthContext.Provider value={authValue}>
       <RouterContext.Provider value={routerValue}>
-        <Layout>{renderRoute(route, setRoute)}</Layout>
+        <Layout showHome={route.name !== 'home'}>{renderRoute(route, setRoute)}</Layout>
       </RouterContext.Provider>
     </AuthContext.Provider>
   )
