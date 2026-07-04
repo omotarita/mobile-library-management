@@ -49,7 +49,7 @@ export default function StaffLogin({ intent }: { intent: StaffIntent }) {
             autoFocus
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            placeholder="e.g. omotara00"
+            placeholder="Your staff username"
           />
         </Field>
         <Button type="submit" disabled={loading || !username.trim()} className="w-full">
