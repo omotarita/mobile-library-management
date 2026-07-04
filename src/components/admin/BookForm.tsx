@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useAuth } from '../../lib/auth'
+import { generateUniqueBookCode } from '../../lib/book-code-generator'
 import { supabase } from '../../lib/supabase'
 import type { Book } from '../../types'
 import { Banner, Button, Card, Field, TextInput } from '../ui'
@@ -10,7 +11,6 @@ const AGE_OPTIONS = [4, 5, 6, 7, 8, 9, 10, 11]
 export default function BookForm({ book, onDone, onCancel }: { book?: Book; onDone: () => void; onCancel: () => void }) {
   const { staff } = useAuth()
   const isEdit = !!book
-  const [uniqueCode, setUniqueCode] = useState(book?.unique_code ?? '')
   const [title, setTitle] = useState(book?.title ?? '')
   const [author, setAuthor] = useState(book?.author ?? '')
   const [minAge, setMinAge] = useState(String(book?.min_age ?? 4))
@@ -18,8 +18,9 @@ export default function BookForm({ book, onDone, onCancel }: { book?: Book; onDo
   const [donor, setDonor] = useState(book?.donor ?? '')
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [createdCode, setCreatedCode] = useState<string | null>(null)
 
-  const canSubmit = uniqueCode.trim() && title.trim() && author.trim() && Number(minAge) <= Number(maxAge)
+  const canSubmit = title.trim() && author.trim() && Number(minAge) <= Number(maxAge)
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -27,8 +28,7 @@ export default function BookForm({ book, onDone, onCancel }: { book?: Book; onDo
     if (!canSubmit) return
     setSaving(true)
     try {
-      const payload = {
-        unique_code: uniqueCode.trim(),
+      const details = {
         title: title.trim(),
         author: author.trim(),
         min_age: Number(minAge),
@@ -37,19 +37,21 @@ export default function BookForm({ book, onDone, onCancel }: { book?: Book; onDo
       }
 
       if (isEdit) {
-        const { error: updateError } = await supabase.from('books').update(payload).eq('id', book.id)
+        const { error: updateError } = await supabase.from('books').update(details).eq('id', book.id)
         if (updateError) throw updateError
         await supabase.from('audit_log').insert({
           admin_id: staff?.id,
           action: 'EDIT_BOOK',
           target_type: 'book',
           target_id: book.id,
-          details: payload,
+          details,
         })
+        onDone()
       } else {
+        const uniqueCode = await generateUniqueBookCode()
         const { data: inserted, error: insertError } = await supabase
           .from('books')
-          .insert({ ...payload, added_by: staff?.id })
+          .insert({ ...details, unique_code: uniqueCode, added_by: staff?.id })
           .select()
           .single()
         if (insertError) throw insertError
@@ -58,32 +60,48 @@ export default function BookForm({ book, onDone, onCancel }: { book?: Book; onDo
           action: 'ADD_BOOK',
           target_type: 'book',
           target_id: inserted.id,
-          details: payload,
+          details: { ...details, unique_code: uniqueCode },
         })
+        setCreatedCode(uniqueCode)
       }
-      onDone()
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err)
-      if (message.includes('duplicate') || message.includes('unique')) {
-        setError('A book with that unique code already exists.')
-      } else {
-        setError('Something went wrong saving this book. Please try again.')
-      }
+    } catch {
+      setError('Something went wrong saving this book. Please try again.')
     } finally {
       setSaving(false)
     }
+  }
+
+  if (createdCode) {
+    return (
+      <Card className="max-w-lg mx-auto text-center">
+        <div className="text-5xl mb-4" aria-hidden="true">🏷️</div>
+        <h1 className="text-xl font-bold mb-2">Book added!</h1>
+        <p className="text-ink/60 mb-4 text-sm">
+          Write this code on a sticker and place it on the book — it's how volunteers will look
+          the book up when it's borrowed or returned.
+        </p>
+        <p className="font-mono text-3xl font-bold tracking-wider text-coral-600 bg-coral-50 rounded-xl py-4 mb-6">
+          {createdCode}
+        </p>
+        <Button onClick={onDone} className="w-full">
+          Done
+        </Button>
+      </Card>
+    )
   }
 
   return (
     <Card className="max-w-lg mx-auto">
       <h1 className="text-xl font-bold mb-4">{isEdit ? 'Edit book' : 'Add a new book'}</h1>
       {error && <Banner tone="error">{error}</Banner>}
-      <form onSubmit={handleSubmit}>
+      {isEdit && (
         <Field label="Unique code (sticker)" htmlFor="book-code">
-          <TextInput id="book-code" value={uniqueCode} onChange={(e) => setUniqueCode(e.target.value)} autoFocus />
+          <TextInput id="book-code" value={book.unique_code} disabled className="opacity-70" />
         </Field>
+      )}
+      <form onSubmit={handleSubmit}>
         <Field label="Title" htmlFor="book-title">
-          <TextInput id="book-title" value={title} onChange={(e) => setTitle(e.target.value)} />
+          <TextInput id="book-title" value={title} onChange={(e) => setTitle(e.target.value)} autoFocus />
         </Field>
         <Field label="Author" htmlFor="book-author">
           <TextInput id="book-author" value={author} onChange={(e) => setAuthor(e.target.value)} />
