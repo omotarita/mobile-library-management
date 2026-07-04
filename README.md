@@ -64,7 +64,7 @@ Create a free project at [supabase.com](https://supabase.com). From
 
 ### 2. Run the migrations
 
-In the Supabase dashboard's **SQL Editor**, run the four files in
+In the Supabase dashboard's **SQL Editor**, run the files in
 `supabase/migrations/` **in order**:
 
 1. `0001_init.sql` — creates all tables
@@ -74,6 +74,8 @@ In the Supabase dashboard's **SQL Editor**, run the four files in
    database functions
 4. `0004_due_soon_reminder.sql` — adds the flag used by the day-before-due
    reminder email
+5. `0005_restore_book_audit_action.sql` — allows logging when a lost/damaged
+   book is restored back to available
 
 (If you have the Supabase CLI installed and linked to your project, you can
 instead run `supabase db push`.)
