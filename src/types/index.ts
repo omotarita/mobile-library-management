@@ -50,6 +50,7 @@ export interface BorrowRecord {
   returned_by: string | null
   overdue_email_1_sent: boolean
   overdue_email_7_sent: boolean
+  due_soon_email_sent: boolean
   override_used: boolean
 }
 

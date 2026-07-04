@@ -43,7 +43,9 @@ src/
                      entirely, which is fine for an internal single-purpose tool)
 supabase/
   migrations/        SQL schema, seed admin, borrow/return RPC functions
-  functions/         check-overdue edge function (daily overdue email sweep)
+  functions/         send-email (browser-triggered emails), check-overdue
+                     (daily due-soon/overdue email sweep), _shared/resend.ts
+                     (shared Resend API wrapper used by both)
 .github/workflows/
   deploy.yml          Build + deploy to GitHub Pages on push to main
   check-overdue.yml   Daily cron that invokes the check-overdue edge function
@@ -62,7 +64,7 @@ Create a free project at [supabase.com](https://supabase.com). From
 
 ### 2. Run the migrations
 
-In the Supabase dashboard's **SQL Editor**, run the three files in
+In the Supabase dashboard's **SQL Editor**, run the four files in
 `supabase/migrations/` **in order**:
 
 1. `0001_init.sql` — creates all tables
@@ -70,18 +72,41 @@ In the Supabase dashboard's **SQL Editor**, run the three files in
    (username `omotara00`)
 3. `0003_borrow_return_rpc.sql` — creates the `borrow_book` / `return_book`
    database functions
+4. `0004_due_soon_reminder.sql` — adds the flag used by the day-before-due
+   reminder email
 
 (If you have the Supabase CLI installed and linked to your project, you can
 instead run `supabase db push`.)
 
-### 3. Deploy the edge function
+### 3. Set up Resend and deploy the edge functions
 
-```bash
-supabase functions deploy check-overdue --project-ref <your-project-ref>
-```
+Emails are sent via [Resend](https://resend.com)'s free tier (100/day,
+3,000/month), which requires verifying a domain you own:
 
-This function needs no extra secrets — Supabase automatically provides
-`SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` to edge functions at runtime.
+1. Sign up at resend.com, then **Domains → Add Domain**, and add the DNS
+   records it gives you (at your domain registrar). Verification can take a
+   few minutes to a few hours.
+2. Once verified, set two secrets on your Supabase project (from your
+   terminal, with the Supabase CLI installed and linked — see below):
+   ```bash
+   supabase secrets set RESEND_API_KEY=re_your_api_key
+   supabase secrets set RESEND_FROM_EMAIL="Mobile Library <library@yourdomain.com>"
+   ```
+   The address in `RESEND_FROM_EMAIL` must be `@` your verified domain.
+3. Deploy both edge functions:
+   ```bash
+   supabase link --project-ref <your-project-ref>
+   supabase functions deploy send-email
+   supabase functions deploy check-overdue
+   ```
+
+`send-email` needs no other secrets. `check-overdue` also needs
+`SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY`, which Supabase provides to
+edge functions automatically.
+
+If you skip this step, emails will fail silently (logged to the function's
+console via Supabase's dashboard **Logs** page) but nothing else in the app
+breaks — borrowing, returning, and registration all still work.
 
 ### 4. Configure environment variables
 
@@ -122,14 +147,20 @@ manually any time from the Actions tab ("Run workflow").
 
 ## Emails
 
-All emails (borrow/return confirmations, welcome messages, overdue
-reminders, admin registration) are currently stubbed to `console.log` in
-`src/lib/email.ts` (browser-triggered emails) and inside the
-`check-overdue` edge function (overdue reminders). Each call site funnels
-through one function, so wiring in a real provider — e.g.
-[Resend](https://resend.com)'s free tier (100 emails/day) — is a small,
-localized change: replace the body of `sendEmail`/`sendOverdueEmail` with a
-`fetch()` call to the provider's API.
+Sent via Resend (see setup step 3 above). Two paths, both going through the
+same `supabase/functions/_shared/resend.ts` wrapper:
+
+- **Browser-triggered** (registration welcome, borrow confirmation, return
+  confirmation, new-admin welcome) — `src/lib/email.ts` calls the
+  `send-email` edge function. A failed send is logged to the browser
+  console but never blocks the flow, since the underlying database action
+  has already succeeded by the time the email goes out.
+- **Scheduled** (due-tomorrow reminder, 1-day-overdue, 7-day-overdue) — sent
+  directly from the `check-overdue` edge function on its daily run.
+
+If `RESEND_API_KEY`/`RESEND_FROM_EMAIL` aren't set, sends fail with a clear
+error visible in Supabase's **Edge Functions → Logs**, but this never
+breaks borrowing, returning, or registration in the app itself.
 
 ## Deferred to a future version
 

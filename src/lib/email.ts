@@ -1,9 +1,9 @@
-// TODO: wire this up to a real transactional email provider (e.g. Resend's
-// free tier — 100 emails/day) via a Supabase Edge Function. For now every
-// "send" just logs to the console so the rest of the app can be built and
-// tested without an email account. Swap the body of `sendEmail` for a
-// `fetch()` call to your edge function once you're ready; every call site
-// in this app already goes through this one function.
+// Sends via the `send-email` Supabase Edge Function, which calls Resend.
+// Every call site in this app goes through this one function. A failed
+// send is logged but never blocks the borrow/return/registration flow —
+// the database action has already succeeded by the time we email, so a
+// flaky email shouldn't surface as an app error to the volunteer.
+import { supabase } from './supabase'
 
 interface EmailPayload {
   to: string
@@ -12,8 +12,13 @@ interface EmailPayload {
 }
 
 async function sendEmail({ to, subject, body }: EmailPayload): Promise<void> {
-  // eslint-disable-next-line no-console
-  console.log(`[email stub] To: ${to}\nSubject: ${subject}\n\n${body}\n`)
+  const { error } = await supabase.functions.invoke('send-email', {
+    body: { to, subject, body },
+  })
+  if (error) {
+    // eslint-disable-next-line no-console
+    console.error('Failed to send email:', error)
+  }
 }
 
 function formatDueDate(dueDateIso: string): string {
