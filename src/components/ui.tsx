@@ -85,3 +85,36 @@ export function Spinner() {
     </div>
   )
 }
+
+export function ConfirmDialog({
+  title,
+  message,
+  confirmLabel = 'Confirm',
+  confirmVariant = 'danger',
+  onConfirm,
+  onCancel,
+}: {
+  title: string
+  message: ReactNode
+  confirmLabel?: string
+  confirmVariant?: ButtonVariant
+  onConfirm: () => void
+  onCancel: () => void
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+      <Card className="max-w-sm w-full">
+        <h2 className="text-lg font-bold mb-2">{title}</h2>
+        <p className="text-sm text-ink/70 mb-6">{message}</p>
+        <div className="flex gap-3">
+          <Button variant="ghost" onClick={onCancel} className="flex-1">
+            Cancel
+          </Button>
+          <Button variant={confirmVariant} onClick={onConfirm} className="flex-1">
+            {confirmLabel}
+          </Button>
+        </div>
+      </Card>
+    </div>
+  )
+}

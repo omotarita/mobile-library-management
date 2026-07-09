@@ -66,6 +66,7 @@ export type AuditAction =
   | 'EDIT_BOOK'
   | 'MARK_LOST'
   | 'MARK_DAMAGED'
+  | 'RESTORE_BOOK'
   | 'OVERRIDE_BORROW_BLOCK'
   | 'REGISTER_ADMIN'
 

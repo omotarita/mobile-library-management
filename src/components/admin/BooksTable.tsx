@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../../lib/auth'
 import { supabase } from '../../lib/supabase'
 import type { Book, BookStatus } from '../../types'
-import { Banner, Button, Spinner, TextInput } from '../ui'
+import { Banner, Button, ConfirmDialog, Spinner, TextInput } from '../ui'
 import AdminNav from './AdminNav'
 import BookForm from './BookForm'
 
@@ -29,6 +29,7 @@ export default function BooksTable() {
   const [statusFilter, setStatusFilter] = useState<BookStatus | 'all'>('all')
   const [formMode, setFormMode] = useState<'closed' | 'new' | Book>('closed')
   const [error, setError] = useState<string | null>(null)
+  const [confirmTarget, setConfirmTarget] = useState<{ book: Book; status: 'lost' | 'damaged' } | null>(null)
 
   useEffect(() => {
     void load()
@@ -57,20 +58,27 @@ export default function BooksTable() {
     setBorrowerByBookId(map)
   }
 
-  async function markStatus(book: Book, status: 'lost' | 'damaged') {
+  async function markStatus(book: Book, status: 'lost' | 'damaged' | 'available') {
     const { error: updateError } = await supabase.from('books').update({ status }).eq('id', book.id)
     if (updateError) {
       setError('Could not update this book. Please try again.')
       return
     }
+    const action = status === 'lost' ? 'MARK_LOST' : status === 'damaged' ? 'MARK_DAMAGED' : 'RESTORE_BOOK'
     await supabase.from('audit_log').insert({
       admin_id: staff?.id,
-      action: status === 'lost' ? 'MARK_LOST' : 'MARK_DAMAGED',
+      action,
       target_type: 'book',
       target_id: book.id,
       details: { unique_code: book.unique_code, title: book.title },
     })
     void load()
+  }
+
+  function confirmMarkStatus() {
+    if (!confirmTarget) return
+    void markStatus(confirmTarget.book, confirmTarget.status)
+    setConfirmTarget(null)
   }
 
   const filtered = useMemo(() => {
@@ -173,23 +181,32 @@ export default function BooksTable() {
                         >
                           Edit
                         </button>
-                        {book.status !== 'lost' && book.status !== 'damaged' && (
+                        {book.status === 'available' && (
                           <>
                             <button
                               type="button"
-                              onClick={() => markStatus(book, 'lost')}
+                              onClick={() => setConfirmTarget({ book, status: 'lost' })}
                               className="text-berry-600 font-semibold hover:underline"
                             >
                               Mark lost
                             </button>
                             <button
                               type="button"
-                              onClick={() => markStatus(book, 'damaged')}
+                              onClick={() => setConfirmTarget({ book, status: 'damaged' })}
                               className="text-berry-600 font-semibold hover:underline"
                             >
                               Mark damaged
                             </button>
                           </>
+                        )}
+                        {(book.status === 'lost' || book.status === 'damaged') && (
+                          <button
+                            type="button"
+                            onClick={() => markStatus(book, 'available')}
+                            className="text-teal-600 font-semibold hover:underline"
+                          >
+                            Restore to available
+                          </button>
                         )}
                       </div>
                     </td>
@@ -206,6 +223,16 @@ export default function BooksTable() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {confirmTarget && (
+        <ConfirmDialog
+          title={`Mark "${confirmTarget.book.title}" as ${confirmTarget.status}?`}
+          message="This removes it from circulation and stops overdue reminders for it. You can restore it to available again later if this was a mistake."
+          confirmLabel={confirmTarget.status === 'lost' ? 'Mark lost' : 'Mark damaged'}
+          onConfirm={confirmMarkStatus}
+          onCancel={() => setConfirmTarget(null)}
+        />
       )}
     </div>
   )
