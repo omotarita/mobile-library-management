@@ -10,6 +10,7 @@
 // checking the Authorization header they're invoked with.
 
 import { createClient } from 'jsr:@supabase/supabase-js@2'
+import { corsHeaders } from '../_shared/cors.ts'
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
 const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -23,13 +24,20 @@ interface RequestBody {
 }
 
 Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
+  }
+
   if (req.method !== 'POST') {
-    return new Response('Method not allowed', { status: 405 })
+    return new Response('Method not allowed', { status: 405, headers: corsHeaders })
   }
 
   const authHeader = req.headers.get('Authorization')
   if (!authHeader) {
-    return new Response(JSON.stringify({ error: 'Not authenticated' }), { status: 401 })
+    return new Response(JSON.stringify({ error: 'Not authenticated' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
   }
 
   const callerClient = createClient(supabaseUrl, serviceRoleKey, {
@@ -37,12 +45,18 @@ Deno.serve(async (req) => {
   })
   const { data: callerData, error: callerError } = await callerClient.auth.getUser()
   if (callerError || !callerData?.user) {
-    return new Response(JSON.stringify({ error: 'Not authenticated' }), { status: 401 })
+    return new Response(JSON.stringify({ error: 'Not authenticated' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
   }
 
   const { email, password, name, username, role } = (await req.json()) as RequestBody
   if (!email || !password || !name || !username || !role) {
-    return new Response(JSON.stringify({ error: 'Missing required fields' }), { status: 400 })
+    return new Response(JSON.stringify({ error: 'Missing required fields' }), {
+      status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
   }
 
   const admin = createClient(supabaseUrl, serviceRoleKey)
@@ -55,6 +69,7 @@ Deno.serve(async (req) => {
   if (createError || !created?.user) {
     return new Response(JSON.stringify({ error: createError?.message ?? 'Could not create account' }), {
       status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   }
 
@@ -75,10 +90,13 @@ Deno.serve(async (req) => {
     // Roll back the auth user so a failed registration doesn't leave an
     // orphaned account (e.g. the username was already taken).
     await admin.auth.admin.deleteUser(created.user.id)
-    return new Response(JSON.stringify({ error: insertError.message }), { status: 400 })
+    return new Response(JSON.stringify({ error: insertError.message }), {
+      status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
   }
 
   return new Response(JSON.stringify({ admin: inserted }), {
-    headers: { 'Content-Type': 'application/json' },
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   })
 })

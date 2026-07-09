@@ -13,6 +13,7 @@
 
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { sendEmail } from '../_shared/resend.ts'
+import { corsHeaders } from '../_shared/cors.ts'
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
 const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -47,8 +48,12 @@ function daysUntilDue(dueDateIso: string): number {
 }
 
 Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
+  }
+
   if (req.method !== 'POST') {
-    return new Response('Method not allowed', { status: 405 })
+    return new Response('Method not allowed', { status: 405, headers: corsHeaders })
   }
 
   const supabase = createClient(supabaseUrl, serviceRoleKey)
@@ -61,7 +66,10 @@ Deno.serve(async (req) => {
     .is('returned_at', null)
 
   if (error) {
-    return new Response(JSON.stringify({ error: error.message }), { status: 500 })
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
   }
 
   const rows = (activeRows as unknown as ActiveBorrowRow[]) ?? []
@@ -113,6 +121,6 @@ Deno.serve(async (req) => {
 
   return new Response(
     JSON.stringify({ checked: rows.length, sentDueSoon, sent1, sent7, skipped }),
-    { headers: { 'Content-Type': 'application/json' } }
+    { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
   )
 })
