@@ -4,7 +4,6 @@ export type AdminStatus = 'active' | 'inactive'
 export interface Admin {
   id: string
   auth_user_id: string | null
-  username: string
   name: string
   email: string | null
   role: AdminRole

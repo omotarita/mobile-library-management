@@ -21,7 +21,6 @@ export default function AdminRegistration() {
 
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
-  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [role, setRole] = useState<AdminRole>('volunteer')
@@ -41,7 +40,6 @@ export default function AdminRegistration() {
   const canSubmit =
     name.trim() &&
     email.trim() &&
-    username.trim() &&
     password.length >= MIN_PASSWORD_LENGTH &&
     password === confirmPassword
 
@@ -56,7 +54,6 @@ export default function AdminRegistration() {
           email: email.trim(),
           password,
           name: name.trim(),
-          username: username.trim(),
           role,
         },
       })
@@ -67,7 +64,7 @@ export default function AdminRegistration() {
           const body = await (fnError as { context?: { json: () => Promise<{ error?: string }> } }).context?.json?.()
           if (body?.error) {
             message = /duplicate|unique|already/i.test(body.error)
-              ? 'That username or email is already taken. Please choose another.'
+              ? 'That email is already registered. Please use another.'
               : body.error
           }
         } catch {
@@ -82,17 +79,16 @@ export default function AdminRegistration() {
         action: 'REGISTER_ADMIN',
         target_type: 'admin',
         target_id: data?.admin?.id,
-        details: { username: username.trim(), role },
+        details: { name: name.trim(), email: email.trim(), role },
       })
 
       await sendAdminWelcomeEmail({
         contactEmail: email.trim(),
         name: name.trim(),
-        username: username.trim(),
         role,
       })
 
-      navigate({ name: 'adminRegisterConfirm', username: username.trim(), role })
+      navigate({ name: 'adminRegisterConfirm', adminName: name.trim(), email: email.trim(), role })
     } catch {
       setError('Something went wrong. Please try again.')
     } finally {
@@ -143,9 +139,6 @@ export default function AdminRegistration() {
         </Field>
         <Field label="Contact email" htmlFor="new-admin-email">
           <TextInput id="new-admin-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-        </Field>
-        <Field label="Choose a username" htmlFor="new-admin-username">
-          <TextInput id="new-admin-username" value={username} onChange={(e) => setUsername(e.target.value)} />
         </Field>
         <Field label="Set a password" htmlFor="new-admin-password">
           <TextInput

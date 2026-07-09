@@ -70,16 +70,11 @@ export async function sendWelcomeEmail(opts: {
   })
 }
 
-export async function sendAdminWelcomeEmail(opts: {
-  contactEmail: string
-  name: string
-  username: string
-  role: string
-}) {
+export async function sendAdminWelcomeEmail(opts: { contactEmail: string; name: string; role: string }) {
   await sendEmail({
     to: opts.contactEmail,
     subject: `Welcome to the Mobile Library team, ${opts.name}!`,
-    body: `You're now registered as a library ${opts.role}. Your username is "${opts.username}" — use this to log into the site (no password needed).`,
+    body: `You're now registered as a library ${opts.role}. Log in at the site with this email address and the password you set at registration.`,
   })
 }
 

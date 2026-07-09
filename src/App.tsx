@@ -167,10 +167,10 @@ function renderRoute(route: Route, navigate: (r: Route) => void) {
     case 'adminRegisterConfirm':
       return (
         <Confirmation
-          heading={`Welcome, ${route.username}!`}
+          heading={`Welcome, ${route.adminName}!`}
           lines={[
             <>You're now registered as a library <strong>{route.role}</strong>.</>,
-            <>Your username is <strong>{route.username}</strong> — this is what you'll use to log into the site.</>,
+            <>Log in at the site with your email (<strong>{route.email}</strong>) and the password you just set.</>,
           ]}
           onDone={() => navigate({ name: 'adminDashboard' })}
         />

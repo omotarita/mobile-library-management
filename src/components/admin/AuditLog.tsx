@@ -12,7 +12,7 @@ interface AuditRow {
   target_id: string | null
   details: Record<string, unknown> | null
   created_at: string
-  admin: { name: string; username: string } | null
+  admin: { name: string } | null
 }
 
 export default function AuditLog() {
@@ -26,7 +26,7 @@ export default function AuditLog() {
   async function load() {
     const { data } = await supabase
       .from('audit_log')
-      .select('*, admin:admins(name, username)')
+      .select('*, admin:admins(name)')
       .order('created_at', { ascending: false })
       .limit(200)
     setRows((data as unknown as AuditRow[]) ?? [])
