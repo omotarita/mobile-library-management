@@ -64,6 +64,18 @@ export default function BooksTable() {
       setError('Could not update this book. Please try again.')
       return
     }
+
+    // If this book was out on loan, close that loan out too — otherwise it
+    // stays "borrowed" against the member forever, even though the book has
+    // been pulled from circulation.
+    if (status === 'lost' || status === 'damaged') {
+      await supabase
+        .from('borrow_records')
+        .update({ returned_at: new Date().toISOString(), returned_by: staff?.id })
+        .eq('book_id', book.id)
+        .is('returned_at', null)
+    }
+
     const action = status === 'lost' ? 'MARK_LOST' : status === 'damaged' ? 'MARK_DAMAGED' : 'RESTORE_BOOK'
     await supabase.from('audit_log').insert({
       admin_id: staff?.id,
@@ -181,7 +193,7 @@ export default function BooksTable() {
                         >
                           Edit
                         </button>
-                        {book.status === 'available' && (
+                        {book.status !== 'lost' && book.status !== 'damaged' && (
                           <>
                             <button
                               type="button"
@@ -228,7 +240,11 @@ export default function BooksTable() {
       {confirmTarget && (
         <ConfirmDialog
           title={`Mark "${confirmTarget.book.title}" as ${confirmTarget.status}?`}
-          message="This removes it from circulation and stops overdue reminders for it. You can restore it to available again later if this was a mistake."
+          message={
+            confirmTarget.book.status === 'borrowed'
+              ? "This removes it from circulation, closes out the current borrower's loan, and stops overdue reminders for it. You can restore it to available again later if this was a mistake."
+              : 'This removes it from circulation and stops overdue reminders for it. You can restore it to available again later if this was a mistake.'
+          }
           confirmLabel={confirmTarget.status === 'lost' ? 'Mark lost' : 'Mark damaged'}
           onConfirm={confirmMarkStatus}
           onCancel={() => setConfirmTarget(null)}
