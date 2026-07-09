@@ -6,6 +6,10 @@ export function formatDate(iso: string): string {
   })
 }
 
+export function firstName(fullName: string): string {
+  return fullName.trim().split(/\s+/)[0] ?? fullName
+}
+
 export function ordinal(n: number): string {
   const s = ['th', 'st', 'nd', 'rd']
   const v = n % 100
