@@ -132,7 +132,8 @@ export default function BorrowFlow({ member }: { member: Member }) {
 
   return (
     <Card className="max-w-lg mx-auto">
-      <h1 className="text-2xl font-bold mb-1">Welcome back, {member.username}</h1>
+      <h1 className="text-2xl font-bold">Welcome back, {member.name}</h1>
+      <p className="text-xs text-ink/40 mb-3">Username: {member.username}</p>
       <p className="text-ink/60 mb-4 text-sm">
         {stats.totalBorrowed} book{stats.totalBorrowed === 1 ? '' : 's'} borrowed to date
       </p>
