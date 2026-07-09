@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useAuth } from '../lib/auth'
 import { sendReturnConfirmationEmail } from '../lib/email'
-import { formatDate } from '../lib/format'
+import { firstName, formatDate } from '../lib/format'
 import { supabase } from '../lib/supabase'
 import { useRouter } from '../router'
 import type { BorrowRecordWithBook, Member } from '../types'
@@ -74,7 +74,7 @@ export default function ReturnFlow({ member }: { member: Member }) {
 
   return (
     <Card className="max-w-lg mx-auto">
-      <h1 className="text-2xl font-bold">Welcome back, {member.name}</h1>
+      <h1 className="text-2xl font-bold">Welcome back, {firstName(member.name)}</h1>
       <p className="text-xs text-ink/40 mb-3">Username: {member.username}</p>
       <p className="text-ink/60 mb-6 text-sm">
         {totalBorrowed} book{totalBorrowed === 1 ? '' : 's'} borrowed to date
