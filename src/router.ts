@@ -18,7 +18,7 @@ export type Route =
   | { name: 'adminMembers' }
   | { name: 'adminMemberDetail'; memberId: string }
   | { name: 'adminRegister' }
-  | { name: 'adminRegisterConfirm'; username: string; role: string }
+  | { name: 'adminRegisterConfirm'; adminName: string; email: string; role: string }
   | { name: 'adminAuditLog' }
 
 export interface RouterContextValue {

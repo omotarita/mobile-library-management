@@ -19,7 +19,6 @@ interface RequestBody {
   email: string
   password: string
   name: string
-  username: string
   role: 'administrator' | 'volunteer'
 }
 
@@ -51,8 +50,8 @@ Deno.serve(async (req) => {
     })
   }
 
-  const { email, password, name, username, role } = (await req.json()) as RequestBody
-  if (!email || !password || !name || !username || !role) {
+  const { email, password, name, role } = (await req.json()) as RequestBody
+  if (!email || !password || !name || !role) {
     return new Response(JSON.stringify({ error: 'Missing required fields' }), {
       status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -77,7 +76,6 @@ Deno.serve(async (req) => {
     .from('admins')
     .insert({
       auth_user_id: created.user.id,
-      username,
       name,
       email,
       role,
@@ -88,7 +86,7 @@ Deno.serve(async (req) => {
 
   if (insertError) {
     // Roll back the auth user so a failed registration doesn't leave an
-    // orphaned account (e.g. the username was already taken).
+    // orphaned account.
     await admin.auth.admin.deleteUser(created.user.id)
     return new Response(JSON.stringify({ error: insertError.message }), {
       status: 400,

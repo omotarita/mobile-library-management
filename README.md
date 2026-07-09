@@ -82,8 +82,8 @@ In the Supabase dashboard's **SQL Editor**, run the files in
 `supabase/migrations/` **in order**:
 
 1. `0001_init.sql` — creates all tables
-2. `0002_seed_admin.sql` — seeds the first administrator account
-   (username `omotara00`)
+2. `0002_seed_admin.sql` — seeds a placeholder first administrator row,
+   which you'll link to a real login in step 3 below
 3. `0003_borrow_return_rpc.sql` — creates the `borrow_book` / `return_book`
    database functions
 4. `0004_due_soon_reminder.sql` — adds the flag used by the day-before-due
@@ -93,6 +93,8 @@ In the Supabase dashboard's **SQL Editor**, run the files in
 6. `0006_rls_lockdown.sql` — enables Row Level Security on every table and
    adds the `admins.auth_user_id` column linking a staff row to a real
    Supabase Auth login (see step 3 below)
+7. `0007_drop_admin_username.sql` — drops the unused `admins.username`
+   column (staff sign in with email + password now, not a username)
 
 (If you have the Supabase CLI installed and linked to your project, you can
 instead run `supabase db push`.)
@@ -107,12 +109,13 @@ instead run `supabase db push`.)
    depend on your Resend setup (step 4) working.
 3. **Authentication → Users → Add user**: create your own account with a
    real email and password. Copy the generated **User UID**.
-4. Back in the **SQL Editor**, link that new login to the `omotara00` seed
-   admin row:
+4. Back in the **SQL Editor**, link that new login to the seed admin row
+   (safe to run as-is on a fresh project — at this point there's exactly
+   one admin row with no login linked yet):
    ```sql
    update admins
    set auth_user_id = 'paste-your-user-uid-here'
-   where username_lower = 'omotara00';
+   where auth_user_id is null;
    ```
 5. Deploy the `create-staff-account` edge function (used whenever an admin
    registers a new volunteer/admin from within the app):

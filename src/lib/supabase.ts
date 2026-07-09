@@ -10,6 +10,8 @@ if (!supabaseUrl || !supabaseAnonKey) {
   )
 }
 
-// No Supabase Auth is used — this is a trusted, in-person, low-risk system
-// with username-only lookups. See README for the access-control rationale.
+// Staff (volunteers/admins) sign in via Supabase Auth (real email +
+// password). Members (children) never authenticate — a signed-in staff
+// member looks them up by username on their behalf. See README for the
+// full access-control rationale (RLS + why members don't need accounts).
 export const supabase = createClient(supabaseUrl ?? '', supabaseAnonKey ?? '')
