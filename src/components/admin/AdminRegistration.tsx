@@ -9,7 +9,7 @@ import { Banner, Button, Card, Field, Select, TextInput } from '../ui'
 import AdminNav from './AdminNav'
 
 const REGISTRATION_CODE = '9999'
-const MIN_PASSWORD_LENGTH = 8
+const MIN_PASSWORD_LENGTH = 6
 
 export default function AdminRegistration() {
   const { staff } = useAuth()
