@@ -49,13 +49,13 @@ export default function MembersTable() {
   return (
     <div>
       <AdminNav active="adminMembers" />
-      <h1 className="text-2xl font-bold mb-4">Members</h1>
+      <h1 className="text-2xl font-bold mb-4">Members ({members?.length ?? 0})</h1>
 
       <TextInput
         placeholder="Search by username, name, or school"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        className="max-w-xs mb-4"
+        className="max-w-[40rem] mb-4 border-2! border-ink/40!"
       />
 
       {!members ? (
@@ -71,7 +71,7 @@ export default function MembersTable() {
                 <th className="px-4 py-3">School</th>
                 <th className="px-4 py-3">Trusted adult</th>
                 <th className="px-4 py-3">Total borrowed</th>
-                <th className="px-4 py-3">Borrowed now</th>
+                <th className="px-4 py-3">Currently borrowing</th>
               </tr>
             </thead>
             <tbody>
