@@ -30,19 +30,19 @@ export function Label(props: LabelHTMLAttributes<HTMLLabelElement>) {
   return <label className="block text-sm font-semibold text-ink/80 mb-1" {...props} />
 }
 
-export function TextInput(props: InputHTMLAttributes<HTMLInputElement>) {
+export function TextInput({ className = '', ...props }: InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
-      className="w-full rounded-xl border border-ink/15 bg-white px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-teal-400 min-h-12"
+      className={`w-full rounded-xl border border-ink/15 bg-white px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-teal-400 min-h-12 ${className}`}
       {...props}
     />
   )
 }
 
-export function Select(props: SelectHTMLAttributes<HTMLSelectElement>) {
+export function Select({ className = '', ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
   return (
     <select
-      className="w-full rounded-xl border border-ink/15 bg-white px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-teal-400 min-h-12"
+      className={`w-full rounded-xl border border-ink/15 bg-white px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-teal-400 min-h-12 ${className}`}
       {...props}
     />
   )

@@ -127,7 +127,7 @@ export default function BooksTable() {
     <div>
       <AdminNav active="adminBooks" />
       <div className="flex flex-wrap items-center gap-3 mb-4">
-        <h1 className="text-2xl font-bold flex-1">Books</h1>
+        <h1 className="text-2xl font-bold flex-1">Books ({books?.length ?? 0})</h1>
         {isAdministrator && <Button onClick={() => setFormMode('new')}>+ Add book</Button>}
       </div>
 
@@ -136,7 +136,7 @@ export default function BooksTable() {
           placeholder="Search by title, author, or code"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="max-w-xs"
+          className="max-w-[40rem] border-2! border-ink/40!"
         />
         <select
           className="rounded-xl border border-ink/15 bg-white px-4 py-3 text-base min-h-12"

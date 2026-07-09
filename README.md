@@ -8,27 +8,38 @@ there is no expectation of meaningful concurrent traffic.
 ## Stack
 
 - React + TypeScript + Tailwind CSS (Vite), deployed as a static site
-- Supabase (Postgres) for data, with a couple of database functions (RPCs)
-  for the borrow/return transactions
-- No authentication provider and no passwords — see **Security model** below
+- Supabase (Postgres + Auth) for data, with a couple of database functions
+  (RPCs) for the borrow/return transactions
+- Real staff logins (email + password) via Supabase Auth — see **Security
+  model** below
 
 ## Security model (read this before deploying)
 
 This system is designed for in-person use by a small, trusted team, not for
-public/internet-scale traffic:
+public/internet-scale traffic — but it holds children's names, ages,
+schools, and guardians' contact details, so access to that data is locked
+behind real authentication:
 
-- **No passwords.** Staff "log in" by typing their username; the app looks
-  it up in the `admins` table and checks `status = 'active'`.
-- **No Supabase Auth.** The app uses the Supabase anon key directly from the
-  browser and does **not** enable Row Level Security on any table — access
-  control (who can see/do what) is enforced entirely in the React app, not
-  the database.
-- **Practical implication:** anyone who obtains your Supabase URL + anon key
-  can read/write the database directly via the REST API, bypassing the app
-  entirely. This is an accepted tradeoff for a zero-cost MVP used by 1-3
-  known people. If that risk profile ever changes (public deployment, more
-  users, more sensitive data), enable RLS and move to real authentication
-  before that happens.
+- **Staff (volunteers/admins) have real passwords**, via Supabase Auth
+  (`email` + `password`, handled entirely by Supabase — this app never
+  stores or hashes a password itself). See `src/lib/auth.ts`.
+- **Members (children) never authenticate.** They don't have accounts,
+  passwords, or logins of any kind — a signed-in volunteer looks them up by
+  username on their behalf. This is unchanged and intentional.
+- **Row Level Security (RLS) is enabled on every table**, with a single
+  policy: only a signed-in (`authenticated`) session can read or write
+  anything. The public `anon` key — visible to anyone who opens dev tools on
+  the live site — grants **zero** access to any table on its own. See
+  `supabase/migrations/0006_rls_lockdown.sql`.
+- **Practical implication:** even someone who finds your Supabase URL and
+  anon key (e.g. an automated scanner that scrapes public GitHub repos for
+  exposed API keys — this repo is public) cannot read or write any data
+  without a valid staff login. This is a meaningful improvement over "no
+  RLS," though it doesn't defend against someone who reads this repo's
+  source, creates their own Supabase Auth session some other way, and is
+  specifically targeting this project — that level of protection would
+  require moving all data access behind server-side edge functions instead
+  of direct client queries, which this app does not do.
 
 ## Project structure
 
@@ -36,16 +47,19 @@ public/internet-scale traffic:
 src/
   components/        Screens for the borrow/return/register/home flows
   components/admin/  Admin dashboard, books/members tables, audit log
-  lib/               Supabase client, auth, username generator, email stubs
+  lib/               Supabase client, auth (Supabase Auth), username
+                     generator, email sending
   types/             Shared TypeScript types
   router.ts          Lightweight in-app view-state router (no URL routing —
                      this avoids the GitHub Pages SPA-routing workaround
                      entirely, which is fine for an internal single-purpose tool)
 supabase/
-  migrations/        SQL schema, seed admin, borrow/return RPC functions
+  migrations/        SQL schema, seed admin, borrow/return RPC functions, RLS
   functions/         send-email (browser-triggered emails), check-overdue
-                     (daily due-soon/overdue email sweep), _shared/resend.ts
-                     (shared Resend API wrapper used by both)
+                     (daily due-soon/overdue email sweep), create-staff-account
+                     (registers a new admin/volunteer without disturbing the
+                     registering admin's own session), _shared/resend.ts
+                     (shared Resend API wrapper used by send-email/check-overdue)
 .github/workflows/
   deploy.yml          Build + deploy to GitHub Pages on push to main
   check-overdue.yml   Daily cron that invokes the check-overdue edge function
@@ -76,11 +90,43 @@ In the Supabase dashboard's **SQL Editor**, run the files in
    reminder email
 5. `0005_restore_book_audit_action.sql` — allows logging when a lost/damaged
    book is restored back to available
+6. `0006_rls_lockdown.sql` — enables Row Level Security on every table and
+   adds the `admins.auth_user_id` column linking a staff row to a real
+   Supabase Auth login (see step 3 below)
 
 (If you have the Supabase CLI installed and linked to your project, you can
 instead run `supabase db push`.)
 
-### 3. Set up Resend and deploy the edge functions
+### 3. Set up your own staff login (Supabase Auth)
+
+1. **Authentication → Providers**: confirm "Email" is enabled (it is by
+   default).
+2. **Authentication → Settings**: turn **off** "Confirm email". Otherwise
+   every new admin/volunteer must click an email confirmation link before
+   their first login — extra friction this app doesn't need, and it'd
+   depend on your Resend setup (step 4) working.
+3. **Authentication → Users → Add user**: create your own account with a
+   real email and password. Copy the generated **User UID**.
+4. Back in the **SQL Editor**, link that new login to the `omotara00` seed
+   admin row:
+   ```sql
+   update admins
+   set auth_user_id = 'paste-your-user-uid-here'
+   where username_lower = 'omotara00';
+   ```
+5. Deploy the `create-staff-account` edge function (used whenever an admin
+   registers a new volunteer/admin from within the app):
+   ```bash
+   supabase link --project-ref <your-project-ref>
+   supabase functions deploy create-staff-account
+   ```
+
+From now on, log in at `/` → **Admin** with that email + password. Every
+new admin/volunteer created afterward (via **Admin → Register new admin**)
+sets their own password at registration time — nobody's password is ever
+handled directly by this app's own code, Supabase Auth does that.
+
+### 4. Set up Resend and deploy the remaining edge functions
 
 Emails are sent via [Resend](https://resend.com)'s free tier (100/day,
 3,000/month), which requires verifying a domain you own:
@@ -110,7 +156,7 @@ If you skip this step, emails will fail silently (logged to the function's
 console via Supabase's dashboard **Logs** page) but nothing else in the app
 breaks — borrowing, returning, and registration all still work.
 
-### 4. Configure environment variables
+### 5. Configure environment variables
 
 ```bash
 cp .env.example .env
@@ -118,7 +164,7 @@ cp .env.example .env
 
 Fill in `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
 
-### 5. Run locally
+### 6. Run locally
 
 ```bash
 npm install
@@ -149,7 +195,7 @@ manually any time from the Actions tab ("Run workflow").
 
 ## Emails
 
-Sent via Resend (see setup step 3 above). Two paths, both going through the
+Sent via Resend (see setup step 4 above). Two paths, both going through the
 same `supabase/functions/_shared/resend.ts` wrapper:
 
 - **Browser-triggered** (registration welcome, borrow confirmation, return

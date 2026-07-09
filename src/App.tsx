@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react'
-import { AuthContext, findStaffByUsername, loadStoredStaff, storeStaff } from './lib/auth'
+import { useEffect, useMemo, useState } from 'react'
+import { AuthContext, fetchAdminProfile, signInStaff, signOutStaff } from './lib/auth'
 import { formatDate, ordinal } from './lib/format'
+import { supabase } from './lib/supabase'
 import { RouterContext, type Route } from './router'
 import type { Admin } from './types'
 
@@ -18,30 +19,60 @@ import MembersTable from './components/admin/MembersTable'
 import MemberDetail from './components/admin/MemberDetail'
 import AdminRegistration from './components/admin/AdminRegistration'
 import AuditLog from './components/admin/AuditLog'
+import { Spinner } from './components/ui'
 
 export default function App() {
   const [route, setRoute] = useState<Route>({ name: 'home' })
-  const [staff, setStaff] = useState<Admin | null>(() => loadStoredStaff())
+  const [staff, setStaff] = useState<Admin | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let active = true
+
+    async function restoreSession() {
+      const { data } = await supabase.auth.getSession()
+      const authUserId = data.session?.user.id
+      const admin = authUserId ? await fetchAdminProfile(authUserId) : null
+      if (active) {
+        setStaff(admin)
+        setLoading(false)
+      }
+    }
+    void restoreSession()
+
+    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session) setStaff(null)
+    })
+
+    return () => {
+      active = false
+      subscription.subscription.unsubscribe()
+    }
+  }, [])
 
   const authValue = useMemo(
     () => ({
       staff,
-      login: async (username: string) => {
-        const admin = await findStaffByUsername(username)
+      loading,
+      login: async (email: string, password: string) => {
+        const admin = await signInStaff(email, password)
         setStaff(admin)
-        storeStaff(admin)
         return admin
       },
-      logout: () => {
+      logout: async () => {
+        await signOutStaff()
         setStaff(null)
-        storeStaff(null)
         setRoute({ name: 'home' })
       },
     }),
-    [staff]
+    [staff, loading]
   )
 
   const routerValue = useMemo(() => ({ navigate: (r: Route) => setRoute(r) }), [])
+
+  if (loading) {
+    return <Spinner />
+  }
 
   return (
     <AuthContext.Provider value={authValue}>
